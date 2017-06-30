@@ -2,8 +2,8 @@
 
 The [**Project xamarin-android** Jenkins page][xa-jenkins-page] has a link
 to the [Latest Azure Artifacts][xa-macOS-azure-artifacts], which contains an
-`oss-xamarin.android*.zip` file for every Jenkins build on macOS.
-The `oss-xamarin.android*.zip` file can be downloaded and used, without
+`oss-xamarin.android*.zip` and `Xamarin.Android.Sdk*.vsix` file for every
+Jenkins build on macOS. These files can be downloaded and used, without
 requiring a local `xamarin-android` repo build.
 
 [xa-jenkins-page]: https://jenkins.mono-project.com/view/Xamarin.Android/job/xamarin-android/
@@ -23,19 +23,14 @@ download the `oss-xamarin.android*.zip` file, e.g.
 
 [oss-xa-macOS]: https://jenkins.mono-project.com/view/Xamarin.Android/job/xamarin-android/lastSuccessfulBuild/Azure/processDownloadRequest/xamarin-android/oss-xamarin.android_v7.2.99.19_Darwin-x86_64_master_3b893cd.zip
 
+Windows users using Visual Studio 2017 may instead download the
+`Xamarin.Android.Sdk*.vsix` file.
+
 macOS users may just extract this into their **Downloads** folder using
 **Archive Utility.app** or `unzip` from **Terminal.app**. This will result
 in a file such as:
 
 	$HOME/Downloads/oss-xamarin.android_v7.2.99.19_Darwin-x86_64_master_3b893cd/bin/Debug/bin/xabuild
-
-Windows users should right-click this file within Explorer and click
-**Extract All...**, and in the **Extract Compressed (Zipped) Folders** dialog
-enter a *short* path such as `C:\xa-sdk`. This is necessary because some
-of the contained filenames are quite long. This will result in a path
-such as:
-
-	C:\xa-sdk\oss-xamarin.android_v7.2.99.19_Darwin-x86_64_master_3b893cd\bin\Debug\bin\mono-symbolicate.cmd
 
 Linux/x86_64 users can go to the
 [Latest xamarin-android-linux Azure Artifacts page][xa-linux-azure-artifacts]
@@ -44,6 +39,69 @@ and download the `oss-xamarin.android*.zip` file, e.g.
 
 [xa-linux-azure-artifacts]: https://jenkins.mono-project.com/view/Xamarin.Android/job/xamarin-android-linux/lastSuccessfulBuild/Azure/
 [oss-xa-Linux]: https://jenkins.mono-project.com/view/Xamarin.Android/job/xamarin-android-linux/lastSuccessfulBuild/Azure/processDownloadRequest/xamarin-android/oss-xamarin.android_v7.2.99.19_Linux-x86_64_master_3b893cd.zip
+
+## Windows Installation
+
+There are two ways to install a Jenkins build of Xamarin.Android on Windows:
+
+1. Through the `oss-xamarin.android*.zip` file.
+2. Through the `Xamarin.Android.Sdk-OSS*.vsix` file.
+
+### `oss-xamarin.android*.zip` Installation
+
+Windows users can right-click the `oss-xamarin.android*.zip` file within
+Windows Explorer and click **Extract All...**, and in the
+**Extract Compressed (Zipped) Folders** dialog enter a *short* path such as
+`C:\xa-sdk`. This is necessary because some of the contained filenames are
+quite long. This will result in a path such as:
+
+	C:\xa-sdk\oss-xamarin.android_v7.2.99.19_Darwin-x86_64_master_3b893cd\bin\Debug\bin\mono-symbolicate.cmd
+
+See the [**Command-line use: Windows**](#cmd-use-Windows) section for details
+on using this installation within a **Developer Command Prompt for VS 2017**
+window.
+
+### `Xamarin.Android.Sdk-OSS*.vsix` Installation
+
+The `Xamarin.Android.Sdk-OSS*.vsix` file can be installed into
+Visual Studio 2017. This requires that the **Xamarin** component be previously
+installed within Visual Studio 2017.
+
+Installing the `Xamarin.Android.Sdk-OSS*.vsix` file is easy:
+double-click the file within Windows Explorer, and complete the
+VSIX Installer window.
+
+The problem is *uninstalling* the `Xamarin.Android.Sdk-OSS.vsix` file, in order
+to use the *stable*/commercial version of Xamarin.Android, if desired. The
+Jenkins-provided `.vsix` file is [*Experimental*][vsix-schema], which
+complicates the uninstallation process.
+
+[vsix-schema]: https://msdn.microsoft.com/en-us/library/hh696828.aspx
+
+When using Visual Studio 15.3 or later, search for `Xamarin.Android` within
+the Visual Studio Extension Manager, and then click the **Revert** button
+to uninstall the `Xamarn.Android.Sdk-OSS` package and revert to the previously
+installed and stable commercial Xamarin.Android version.
+
+![VS Extensions Window](VS-Extensions-Revert.png)
+
+Visual Studio 15.2 and earlier do not have a **Revert** button. The only way to
+return to a stable Xamarin.Android version is to uninstall and reinstall the
+**Xamarin** component from within the Visual Studio 2017 Installer.
+
+For simplicity, we suggest installing *multiple* Visual Studio 2017 products,
+e.g. both Visual Studio Community and Visual Studio Professional, and
+designating one of them for "stable" use and one for Jenkins use.
+
+Once the `Xamarin.Android.Sdk-OSS*.vsix` file has been downloaded, you can
+double-click the file, and within the **VSIX Installer** window you can select
+which products the Xamarin.Android SDK should be installed into:
+
+![VSIX Installer Window](VSIX-Installer.png)
+
+Once you've selected the desired Visual Studio products, click the **Install**
+button to install the Xamarin.Android SDK extension into Visual Studio 2017.
+
 
 # Using Jenkins Build Artifacts
 
@@ -76,6 +134,7 @@ projects.
 		/t:SignAndroidPackage \
 		samples/HelloWorld/HelloWorld.csproj
 
+<a name="cmd-use-Windows" />
 
 ## Command-line use: Windows
 
@@ -104,6 +163,7 @@ For example (using the paths from [Android SDK Setup](#Android_SDK_Setup)):
 		samples\HelloWorld\HelloWorld.csproj
 
 <a name="Android_SDK_Setup" />
+
 # Android SDK Setup
 
 Please see the [Android Studio][android-studio] page to download the

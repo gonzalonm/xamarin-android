@@ -64,6 +64,7 @@
     <MonoFacadeAssembly Include="System.Net.WebSockets.dll" />
     <MonoFacadeAssembly Include="System.ObjectModel.dll" />
     <MonoFacadeAssembly Include="System.Reflection.dll" />
+    <MonoFacadeAssembly Include="System.Reflection.DispatchProxy.dll" />
     <MonoFacadeAssembly Include="System.Reflection.Emit.dll" />
     <MonoFacadeAssembly Include="System.Reflection.Emit.ILGeneration.dll" />
     <MonoFacadeAssembly Include="System.Reflection.Emit.Lightweight.dll" />
@@ -77,7 +78,9 @@
     <MonoFacadeAssembly Include="System.Runtime.Extensions.dll" />
     <MonoFacadeAssembly Include="System.Runtime.Handles.dll" />
     <MonoFacadeAssembly Include="System.Runtime.InteropServices.dll" />
+    <MonoFacadeAssembly Include="System.Runtime.InteropServices.RuntimeInformation.dll" />
     <MonoFacadeAssembly Include="System.Runtime.InteropServices.WindowsRuntime.dll" />
+    <MonoFacadeAssembly Include="System.Runtime.Loader.dll" />
     <MonoFacadeAssembly Include="System.Runtime.Numerics.dll" />
     <MonoFacadeAssembly Include="System.Runtime.Serialization.Formatters.dll" />
     <MonoFacadeAssembly Include="System.Runtime.Serialization.Json.dll" />
@@ -124,13 +127,24 @@
     <MonoFacadeAssembly Include="System.Threading.Thread.dll" />
     <MonoFacadeAssembly Include="System.Threading.ThreadPool.dll" />
     <MonoFacadeAssembly Include="System.Threading.Timer.dll" />
+    <MonoFacadeAssembly Include="System.ValueTuple.dll" />
     <MonoFacadeAssembly Include="System.Xml.ReaderWriter.dll" />
     <MonoFacadeAssembly Include="System.Xml.XDocument.dll" />
     <MonoFacadeAssembly Include="System.Xml.XmlDocument.dll" />
     <MonoFacadeAssembly Include="System.Xml.XmlSerializer.dll" />
     <MonoFacadeAssembly Include="System.Xml.XPath.dll" />
     <MonoFacadeAssembly Include="System.Xml.XPath.XDocument.dll" />
+    <MonoFacadeAssembly Include="System.Xml.XPath.XmlDocument.dll" />
     <MonoFacadeAssembly Include="System.Xml.Xsl.Primitives.dll" />
+    <!--
+      System.Drawing.Primitives and netstandard need a reference to Mono.Android.dll so their
+      build is driven from the XA repo by invoking make in the Mono submodule and passing the path
+      to Mono.Android.dll. This doesn't work however if we just have a bundle because the Mono
+      submodule won't be built. We need to add the facades to the bundle and not rebuild them in
+      this case (which is fine since all they depend on is the Mono.Android.dll assembly identity).
+    -->
+    <MonoFacadeAssembly Include="System.Drawing.Primitives.dll" />
+    <MonoFacadeAssembly Include="netstandard.dll" />
   </ItemGroup>
   <ItemGroup>
     <MonoProfileAssembly Include="I18N.CJK.dll" />
@@ -162,8 +176,6 @@
     <MonoProfileAssembly Include="System.Numerics.dll" />
     <MonoProfileAssembly Include="System.Numerics.Vectors.dll" />
     <MonoProfileAssembly Include="System.Reflection.Context.dll" />
-    <MonoProfileAssembly Include="System.Reflection.DispatchProxy.dll" />
-    <MonoProfileAssembly Include="System.Runtime.InteropServices.RuntimeInformation.dll" />
     <MonoProfileAssembly Include="System.Runtime.Serialization.dll" />
     <MonoProfileAssembly Include="System.Security.dll" />
     <MonoProfileAssembly Include="System.ServiceModel.dll" />
@@ -175,6 +187,5 @@
     <MonoProfileAssembly Include="System.Xml.dll" />
     <MonoProfileAssembly Include="System.Xml.Linq.dll" />
     <MonoProfileAssembly Include="System.Xml.Serialization.dll" />
-    <MonoProfileAssembly Include="System.Xml.XPath.XmlDocument.dll" />
   </ItemGroup>
 </Project>

@@ -155,6 +155,39 @@ namespace Xamarin.Android.Net
 		/// <value>The trusted certs.</value>
 		public IList <Certificate> TrustedCerts { get; set; }
 
+		/// <summary>
+		/// <para>
+		/// Specifies the connection read timeout.
+		/// </para>
+		/// <para>
+		/// Since there's no way for the handler to access <see cref="t:System.Net.Http.HttpClient.Timeout"/>
+		/// directly, this property should be set by the calling party to the same desired value. Value of this
+		/// property will be passed to the native Java HTTP client, unless it is set to <see
+		/// cref="t:System.TimeSpan.Zero"/>
+		/// </para>
+		/// <para>
+		/// The default value is <c>100</c> seconds, the same as the documented value of <see
+		/// cref="t:System.Net.Http.HttpClient.Timeout"/>
+		/// </para>
+		/// </summary>
+		public TimeSpan ReadTimeout { get; set; } = TimeSpan.FromSeconds (100);
+
+		/// <summary>
+		/// <para>
+		/// Specifies the connect timeout
+		/// </para>
+		/// <para>
+		/// The native Java client supports two separate timeouts - one for reading from the connection (<see
+		/// cref="ReadTimeout"/>) and another for establishing the connection. This property sets the value of
+		/// the latter timeout, unless it is set to <see cref="t:System.TimeSpan.Zero"/> in which case the
+		/// native Java client defaults are used.
+		/// </para>
+		/// <para>
+		/// The default value is <c>120</c> seconds.
+		/// </para>
+		/// </summary>
+		public TimeSpan ConnectTimeout { get; set; } = TimeSpan.FromSeconds (120);
+
 		protected override void Dispose (bool disposing)
 		{
 			disposed  = true;
@@ -187,6 +220,20 @@ namespace Xamarin.Android.Net
 		}
 
 		/// <summary>
+		/// Returns a custom host name verifier for a HTTPS connection. By default it returns <c>null</c> and
+		/// thus the connection uses whatever host name verification mechanism the operating system defaults to.
+		/// Override in your class to define custom host name verification behavior. The overriding class should
+		/// not set the <see cref="m:HttpsURLConnection.HostnameVerifier"/> property directly on the passed
+		/// <paramref name="connection"/>
+		/// </summary>
+		/// <returns>Instance of IHostnameVerifier to be used for this HTTPS connection</returns>
+		/// <param name="connection">HTTPS connection object.</param>
+		protected virtual IHostnameVerifier GetSSLHostnameVerifier (HttpsURLConnection connection)
+		{
+			return null;
+		}
+
+		/// <summary>
 		/// Creates, configures and processes an asynchronous request to the indicated resource.
 		/// </summary>
 		/// <returns>Task in which the request is executed</returns>
@@ -208,7 +255,25 @@ namespace Xamarin.Android.Net
 			};
 			while (true) {
 				URL java_url = new URL (EncodeUrl (redirectState.NewUrl));
-				URLConnection java_connection = java_url.OpenConnection ();
+				URLConnection java_connection;
+				if (UseProxy)
+					java_connection = java_url.OpenConnection ();
+				else
+					java_connection = java_url.OpenConnection (Java.Net.Proxy.NoProxy);
+
+				var httpsConnection = java_connection as HttpsURLConnection;
+				if (httpsConnection != null) {
+					IHostnameVerifier hnv = GetSSLHostnameVerifier (httpsConnection);
+					if (hnv != null)
+						httpsConnection.HostnameVerifier = hnv;
+				}
+
+				if (ConnectTimeout != TimeSpan.Zero)
+					java_connection.ConnectTimeout = checked ((int)ConnectTimeout.TotalMilliseconds);
+
+				if (ReadTimeout != TimeSpan.Zero)
+					java_connection.ReadTimeout = checked ((int)ReadTimeout.TotalMilliseconds);
+
 				HttpURLConnection httpConnection = await SetupRequestInternal (request, java_connection).ConfigureAwait (continueOnCapturedContext: false);;
 				HttpResponseMessage response = await ProcessRequest (request, java_url, httpConnection, cancellationToken, redirectState).ConfigureAwait (continueOnCapturedContext: false);;
 				if (response != null)
@@ -246,6 +311,34 @@ namespace Xamarin.Android.Net
 					throw;
 				}
 			}, ct);
+		}
+
+		protected virtual async Task WriteRequestContentToOutput (HttpRequestMessage request, HttpURLConnection httpConnection, CancellationToken cancellationToken)
+		{
+			using (var stream = await request.Content.ReadAsStreamAsync ().ConfigureAwait (false)) {
+				await stream.CopyToAsync(httpConnection.OutputStream, 4096, cancellationToken).ConfigureAwait(false);
+
+				//
+				// Rewind the stream to beginning in case the HttpContent implementation
+				// will be accessed again (e.g. after redirect) and it keeps its stream
+				// open behind the scenes instead of recreating it on the next call to
+				// ReadAsStreamAsync. If we don't rewind it, the ReadAsStreamAsync
+				// call above will throw an exception as we'd be attempting to read an
+				// already "closed" stream (that is one whose Position is set to its
+				// end).
+				//
+				// This is not a perfect solution since the HttpContent may do weird
+				// things in its implementation, but it's better than copying the
+				// content into a buffer since we have no way of knowing how the data is
+				// read or generated and also we don't want to keep potentially large
+				// amounts of data in memory (which would happen if we read the content
+				// into a byte[] buffer and kept it cached for re-use on redirect).
+				//
+				// See https://bugzilla.xamarin.com/show_bug.cgi?id=55477
+				//
+				if (stream.CanSeek)
+					stream.Seek (0, SeekOrigin.Begin);
+			}
 		}
 
 		async Task <HttpResponseMessage> DoProcessRequest (HttpRequestMessage request, URL javaUrl, HttpURLConnection httpConnection, CancellationToken cancellationToken, RequestRedirectionState redirectState)
@@ -294,12 +387,8 @@ namespace Xamarin.Android.Net
 					}, TaskScheduler.Default);
 				}, useSynchronizationContext: false);
 
-				if (httpConnection.DoOutput) {
-					using (var stream = await request.Content.ReadAsStreamAsync ().ConfigureAwait (false)) {
-						await stream.CopyToAsync(httpConnection.OutputStream, 4096, cancellationToken)
-							.ConfigureAwait(false);
-					}
-				}
+				if (httpConnection.DoOutput)
+					await WriteRequestContentToOutput (request, httpConnection, cancellationToken);
 
 				statusCode = await Task.Run (() => (HttpStatusCode)httpConnection.ResponseCode).ConfigureAwait (false);
 				connectionUri = new Uri (httpConnection.URL.ToString ());
@@ -666,10 +755,32 @@ namespace Xamarin.Android.Net
 			return httpConnection;
 		}
 
+		/// <summary>
+		/// Configure and return a custom <see cref="t:SSLSocketFactory"/> for the passed HTTPS <paramref
+		/// name="connection"/>. If the class overriding the method returns anything but the default
+		/// <c>null</c>, the SSL setup code will not call the <see cref="ConfigureKeyManagerFactory"/> nor the
+		/// <see cref="ConfigureTrustManagerFactory"/> methods used to configure a custom trust manager which is
+		/// then used to create a default socket factory.
+		/// Deriving class must perform all the key manager and trust manager configuration to ensure proper
+		/// operation of the returned socket factory.
+		/// </summary>
+		/// <returns>Instance of SSLSocketFactory ready to use with the HTTPS connection.</returns>
+		/// <param name="connection">HTTPS connection to return socket factory for</param>
+		protected virtual SSLSocketFactory ConfigureCustomSSLSocketFactory (HttpsURLConnection connection)
+		{
+			return null;
+		}
+
 		void SetupSSL (HttpsURLConnection httpsConnection)
 		{
 			if (httpsConnection == null)
 				return;
+
+			SSLSocketFactory socketFactory = ConfigureCustomSSLSocketFactory (httpsConnection);
+			if (socketFactory != null) {
+				httpsConnection.SSLSocketFactory = socketFactory;
+				return;
+			}
 
 			KeyStore keyStore = KeyStore.GetInstance (KeyStore.DefaultType);
 			keyStore.Load (null, null);

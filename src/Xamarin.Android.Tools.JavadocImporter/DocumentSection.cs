@@ -144,7 +144,7 @@ namespace Xamarin.Android.Tools.JavaDocToMdoc
 
 		XElement GetJavaDocSectionTable (XElement jd, string section)
 		{
-			return jd.Descendants ("table").FirstOrDefault (t => t.XPathSelectElement ("tr[string(th) = '" + section + "']") != null);
+			return jd.Descendants ("table").FirstOrDefault (t => t.XPathSelectElement ("tr/th[string(th) = '" + section + "']") != null);
 		}
 	}
 
@@ -317,6 +317,9 @@ namespace Xamarin.Android.Tools.JavaDocToMdoc
 
 		public JavaDocDocumentSection (XElement sectionNode)
 		{
+			if (sectionNode == null)
+				return; // Any derived classes might pass null element here. Since we cannot reject it here, we ignore the entire section.
+
 			section_node = sectionNode;
 			foreach (XElement pp in section_node.XPathSelectElements (".//dl/dt")) {
 				var b = pp.XPathSelectElement (SectionNameWrapperTag);
@@ -428,6 +431,8 @@ namespace Xamarin.Android.Tools.JavaDocToMdoc
 
 		public override IEnumerable<XNode> GetSummaryNodes ()
 		{
+			if (section_node == null)
+				return Enumerable.Empty<XNode> ();
 			var sumDL = section_node.Elements (XName.Get ("dd")).FirstOrDefault ();
 			return sumDL == null ? Enumerable.Empty<XNode> () :
 			sumDL.Nodes ().TakeWhile (n => !(n is XElement && ((XElement)n).Name.LocalName != "dl"))
